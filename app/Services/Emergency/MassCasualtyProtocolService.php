@@ -19,8 +19,7 @@ class MassCasualtyProtocolService
     ) {}
 
     /**
-     * Declare an incident as a Mass Casualty Incident (MCI)
-     * and activate multi-hospital surge protocol.
+     * Declare an incident as a Mass Casualty Incident (MCI) and activate multi-hospital surge protocol
      */
     public function declareMci(
         EmergencyIncident $incident,
@@ -31,29 +30,26 @@ class MassCasualtyProtocolService
 
         // Determine MCI Level based on casualty scale
         $mciLevel = $data['mci_level'] ?? match (true) {
-            $victimsCount >= 50 => 'LEVEL_4',
-            $victimsCount >= 26 => 'LEVEL_3',
-            $victimsCount >= 11 => 'LEVEL_2',
-            default => 'LEVEL_1',
+            $victimsCount >= 50 => 'LEVEL_4', // Major Catastrophe / Regional Disaster
+            $victimsCount >= 26 => 'LEVEL_3', // Large Scale Incident
+            $victimsCount >= 11 => 'LEVEL_2', // Moderate MCI
+            default => 'LEVEL_1',            // Initial MCI (5-10 casualties)
         };
 
         // START (Simple Triage and Rapid Treatment) initial casualty distribution
         $triageCounts = $data['triage_counts'] ?? [
-            'red' => (int) round($victimsCount * 0.35),
-            'yellow' => (int) round($victimsCount * 0.40),
-            'green' => (int) round($victimsCount * 0.20),
-            'black' => max(0, $victimsCount - (int) round($victimsCount * 0.95)),
+            'red' => (int) round($victimsCount * 0.35),    // Immediate / Life-Threatening
+            'yellow' => (int) round($victimsCount * 0.40), // Delayed / Serious
+            'green' => (int) round($victimsCount * 0.20),  // Minor / Walking Wounded
+            'black' => max(0, $victimsCount - (int) round($victimsCount * 0.95)), // Expectant
         ];
 
+        // Ensure total equals or exceeds victim count
         $red = $triageCounts['red'] ?? 0;
         $yellow = $triageCounts['yellow'] ?? 0;
 
-        // Calculate Multi-Hospital Bed Distribution
-        $hospitalAllocations = $this->calculateSurgeBedDistribution(
-            $incident,
-            $red,
-            $yellow
-        );
+        // Calculate Multi-Hospital Bed Distribution to prevent hospital system collapse
+        $hospitalAllocations = $this->calculateSurgeBedDistribution($incident, $red, $yellow);
 
         $incident->update([
             'is_mci' => true,
@@ -63,7 +59,7 @@ class MassCasualtyProtocolService
             'mci_hospital_allocations' => $hospitalAllocations,
             'mci_declared_at' => Carbon::now(),
             'severity_level' => 'P1',
-            'priority_score' => 100,
+            'priority_score' => 100, // Maximum system priority
             'status' => 'PRIORITIZED',
         ]);
 
@@ -79,8 +75,8 @@ class MassCasualtyProtocolService
                 $yellow,
                 count($hospitalAllocations)
             ),
-            'actor_id' => $operator?->id,
-            'metadata' => [
+            'actor_user_id' => $operator?->id,
+            'payload' => [
                 'mci_level' => $mciLevel,
                 'number_of_victims' => $victimsCount,
                 'triage_counts' => $triageCounts,
@@ -92,7 +88,7 @@ class MassCasualtyProtocolService
     }
 
     /**
-     * Distribute casualties across multiple regional hospitals.
+     * Distribute casualties across multiple regional hospitals to prevent ER saturation
      */
     public function calculateSurgeBedDistribution(
         EmergencyIncident $incident,
@@ -109,10 +105,7 @@ class MassCasualtyProtocolService
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->select('*')
-            ->selectRaw(
-                '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance',
-                [$lat, $lng, $lat]
-            )
+            ->selectRaw('(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance', [$lat, $lng, $lat])
             ->having('distance', '<=', 40.0)
             ->orderBy('distance', 'asc')
             ->limit(6)
@@ -132,30 +125,21 @@ class MassCasualtyProtocolService
         $remainingRed = $redVictims;
         $remainingYellow = $yellowVictims;
 
-        $isBurnIncident = in_array(
-            $incident->emergency_type,
-            ['FIRE', 'BURN'],
-            true
-        );
+        // Specialized routing: If fire or burn incident, reserve highest red capacity for Burn Institute
+        $isBurnIncident = in_array($incident->emergency_type, ['FIRE', 'BURN'], true);
 
         foreach ($hospitals as $index => $hospital) {
             $isLast = ($index === $totalHospitals - 1);
 
+            // Calculate share of casualties for this hospital
             if ($isLast) {
                 $assignedRed = $remainingRed;
                 $assignedYellow = $remainingYellow;
             } else {
+                // Frontline nearest hospitals take slightly higher proportion
                 $shareFraction = 1.0 / ($totalHospitals - $index);
-
-                $assignedRed = min(
-                    $remainingRed,
-                    (int) ceil($remainingRed * $shareFraction)
-                );
-
-                $assignedYellow = min(
-                    $remainingYellow,
-                    (int) ceil($remainingYellow * $shareFraction)
-                );
+                $assignedRed = min($remainingRed, (int) ceil($remainingRed * $shareFraction));
+                $assignedYellow = min($remainingYellow, (int) ceil($remainingYellow * $shareFraction));
             }
 
             $remainingRed -= $assignedRed;
@@ -165,9 +149,7 @@ class MassCasualtyProtocolService
                 'hospital_id' => $hospital->id,
                 'hospital_name' => $hospital->name,
                 'hospital_phone' => $hospital->emergency_phone ?: $hospital->phone,
-                'distance_km' => isset($hospital->distance)
-                    ? round((float) $hospital->distance, 2)
-                    : 5.0,
+                'distance_km' => isset($hospital->distance) ? round((float) $hospital->distance, 2) : 5.0,
                 'address' => $hospital->address ?: ($hospital->city . ', Bangladesh'),
                 'allocated_red' => $assignedRed,
                 'allocated_yellow' => $assignedYellow,
@@ -180,13 +162,10 @@ class MassCasualtyProtocolService
     }
 
     /**
-     * Update on-scene dynamic casualty triage counts.
+     * Update on-scene dynamic casualty triage counts
      */
-    public function updateTriageCounts(
-        EmergencyIncident $incident,
-        array $triageCounts,
-        ?User $operator = null
-    ): EmergencyIncident {
+    public function updateTriageCounts(EmergencyIncident $incident, array $triageCounts, ?User $operator = null): EmergencyIncident
+    {
         $incident->update([
             'mci_triage_counts' => $triageCounts,
             'number_of_victims' => array_sum($triageCounts),
@@ -203,8 +182,8 @@ class MassCasualtyProtocolService
                 $triageCounts['green'] ?? 0,
                 $triageCounts['black'] ?? 0
             ),
-            'actor_id' => $operator?->id,
-            'metadata' => [
+            'actor_user_id' => $operator?->id,
+            'payload' => [
                 'triage_counts' => $triageCounts,
             ],
         ]);

@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --color-emergency-50: #fef2f2;
+    --color-emergency-100: #fee2e2;
+    --color-emergency-500: #ef4444;
+    --color-emergency-600: #dc2626;
+    --color-emergency-700: #b91c1c;
+}
+
+/* Custom UI Utilities */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.pulse-dot::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+/* Leaflet Custom Marker & Popup Styles */
+.custom-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    border: 2px solid #ffffff;
+    transition: transform 0.2s ease;
+}
+
+.custom-pin:hover {
+    transform: scale(1.15);
+}
+
+.custom-pin.hospital { background: #dc2626; }
+.custom-pin.ambulance { background: #ea580c; }
+.custom-pin.pharmacy { background: #059669; }
+.custom-pin.blood-donor { background: #e11d48; }
+.custom-pin.police-station { background: #2563eb; }
+.custom-pin.fire-service { background: #d97706; }
+.custom-pin.diagnostic-center { background: #9333ea; }
+.custom-pin.user-location { background: #0284c7; }
+
+/* Dark Mode Leaflet Map Tiles Inversion & Aesthetics */
+.dark .leaflet-tile-pane {
+    filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 14px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.15) !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.dark .leaflet-popup-content-wrapper {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+}
+
+.leaflet-popup-tip {
+    background: #ffffff !important;
+}
+
+.dark .leaflet-popup-tip {
+    background: #0f172a !important;
+}
+
+.leaflet-popup-content {
+    margin: 0 !important;
+    line-height: 1.4 !important;
+}
+
+/* Active Theme Toggle Button State */
+.active-theme-option {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #dc2626 !important;
+    font-weight: 700 !important;
+}
+
+.dark .active-theme-option {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* Theme Smooth Transitions */
+body, nav, header, aside, main, footer, .theme-transition {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
