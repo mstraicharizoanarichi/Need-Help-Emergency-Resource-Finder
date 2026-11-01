@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class CommunityFirstResponder extends Model
 {
@@ -63,10 +62,14 @@ class CommunityFirstResponder extends Model
     }
 
     /**
-     * Scope query to find responders near given latitude/longitude using Haversine formula.
+     * Scope query to find responders near given coordinates.
      */
-    public function scopeNearby($query, float $lat, float $lng, float $radiusKm = 3.0)
-    {
+    public function scopeNearby(
+        $query,
+        float $lat,
+        float $lng,
+        float $radiusKm = 3.0
+    ) {
         $haversine = "(6371 * acos(
             cos(radians(?))
             * cos(radians(latitude))
@@ -75,11 +78,17 @@ class CommunityFirstResponder extends Model
             * sin(radians(latitude))
         ))";
 
-        return $query->select('*')
+        return $query
+            ->select('*')
             ->selectRaw("{$haversine} AS distance", [$lat, $lng, $lat])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->having('distance', '<=', $radiusKm)
+            ->whereRaw("{$haversine} <= ?", [
+                $lat,
+                $lng,
+                $lat,
+                $radiusKm,
+            ])
             ->orderBy('distance', 'asc');
     }
 }
