@@ -1,297 +1,386 @@
 # 🚀 Project Setup & Execution Guide
+
 ## Need Help – Emergency Resource & Life-Safety Dispatch Platform (Bangladesh)
 
-Welcome Richi! This document provides a complete, foolproof, step-by-step walkthrough to get this Laravel 12 application running on your local development machine with **zero errors**.
+This guide explains how to install, configure, run, and test the Laravel application locally.
 
 ---
 
-## 📋 System Prerequisites
+## 📋 1. System Requirements
 
-Ensure you have the following installed on your machine before beginning:
-
-| Software | Minimum Version | Recommended Tool / Distribution |
-| :--- | :--- | :--- |
-| **PHP** | 8.2 or higher | [XAMPP](https://www.apachefriends.org/), [Laragon](https://laragon.org/), or PHP standalone |
-| **Composer** | 2.x | [getcomposer.org](https://getcomposer.org/) |
-| **Node.js & npm** | Node 18+ / npm 9+ | [nodejs.org](https://nodejs.org/) (LTS version) |
-| **Database** | MySQL 8.0+ or MariaDB 10.4+ | Bundled with XAMPP / Laragon, or standalone MySQL |
-| **Git** | 2.x+ | [git-scm.com](https://git-scm.com/) |
+| Software | Minimum Version |
+| -------- | --------------- |
+| PHP      | 8.2 or higher   |
+| Composer | 2.x             |
+| Node.js  | 18 or higher    |
+| npm      | 9 or higher     |
+| MySQL    | 8.0 or higher   |
+| MariaDB  | 10.4 or higher  |
+| Git      | 2.x or higher   |
 
 ### Required PHP Extensions
-Make sure the following extensions are enabled in your `php.ini` file:
-- `pdo_mysql`
-- `mbstring`
-- `openssl`
-- `curl`
-- `fileinfo`
-- `xml`
-- `bcmath`
 
-*(If using XAMPP or Laragon on Windows, these are enabled by default, or you can verify they are uncommented in `php.ini`).*
+Ensure these PHP extensions are enabled:
+
+* `pdo_mysql`
+* `mbstring`
+* `openssl`
+* `curl`
+* `fileinfo`
+* `xml`
+* `bcmath`
 
 ---
 
-## ⚡ Quick Start: Step-by-Step Installation
+## ⚡ 2. Installation
 
-### Step 1: Clone or Navigate to the Project
+### Step 1: Clone the Repository
+
 ```bash
-# If cloning via Git:
-git clone https://github.com/Rahad-Max/Need-Emergency-service-platform.git
-cd Need-Emergency-service-platform
-
-# Or if you received the project folder directly:
-cd Need_Help_Emergency_Resource_Finder
+git clone https://github.com/mstraicharizoanarichi/Need-Help-Emergency-Resource-Finder.git
+cd Need-Help-Emergency-Resource-Finder
 ```
 
----
+Alternatively, open the extracted project directory in your terminal.
 
-### Step 2: Install PHP (Composer) Dependencies
-Run Composer to install all backend packages:
+### Step 2: Install PHP Dependencies
+
 ```bash
 composer install
 ```
-> [!NOTE]
-> This installs Laravel 12 core framework dependencies, database utilities, and testing tools.
 
----
+### Step 3: Install Frontend Dependencies
 
-### Step 3: Install Frontend (npm) Dependencies
-Run npm to install all JavaScript, Tailwind CSS 4, and Alpine.js packages:
 ```bash
 npm install
 ```
 
----
+### Step 4: Create the Environment File
 
-### Step 4: Configure the Environment File (`.env`)
-Create your local environment file by copying the provided `.env.example` template:
+For Windows PowerShell:
 
-**On Windows (PowerShell / Command Prompt):**
 ```powershell
-copy .env.example .env
+Copy-Item .env.example .env
 ```
 
-**On macOS / Linux / Git Bash:**
+For macOS/Linux:
+
 ```bash
 cp .env.example .env
 ```
 
----
+### Step 5: Generate the Application Key
 
-### Step 5: Generate Application Encryption Key
-Generate a secure, unique `APP_KEY` in your `.env` file:
 ```bash
 php artisan key:generate
 ```
 
 ---
 
-### Step 6: Configure the Database
+## 🗄️ 3. Database Configuration
 
-#### Option A: MySQL (Default & Recommended)
-1. Open your MySQL client (e.g., phpMyAdmin at `http://localhost/phpmyadmin`, HeidiSQL, MySQL Workbench, or CLI).
-2. Create a new empty database named **`need_help`**:
-   ```sql
-   CREATE DATABASE need_help CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
-3. Open the `.env` file in your editor and verify your database settings:
-   ```ini
-   DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=need_help
-   DB_USERNAME=root
-   DB_PASSWORD=
-   ```
-   > [!TIP]
-   > - If you use **XAMPP** or **Laragon**, the default MySQL username is `root` with an **empty** password (`DB_PASSWORD=`).
-   > - If you have set a custom MySQL password, enter it in `DB_PASSWORD=your_password`.
+### Option A: MySQL / MariaDB
 
-#### Option B: SQLite (Quick Setup without MySQL)
-If you don't have MySQL running, you can use SQLite:
-1. In your terminal, create an empty SQLite file:
-   ```bash
-   # Windows PowerShell:
-   New-Item -ItemType File -Path database\database.sqlite
-   
-   # Linux / macOS / Git Bash:
-   touch database/database.sqlite
-   ```
-2. Update `.env`:
-   ```ini
-   DB_CONNECTION=sqlite
-   # Comment out or remove DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD
-   ```
+1. Start MySQL or MariaDB using XAMPP, Laragon, or your database server.
+2. Open phpMyAdmin or another database management tool.
+3. Create an empty database.
+
+Example:
+
+```sql
+CREATE DATABASE web_project_need_help
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+```
+
+4. Update the database settings in `.env`:
+
+```ini
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=web_project_need_help
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Use your actual database name, username, and password if they are different.
+
+### Option B: SQLite
+
+If you prefer SQLite:
+
+```powershell
+New-Item -ItemType File -Path database\database.sqlite
+```
+
+Set the following in `.env`:
+
+```ini
+DB_CONNECTION=sqlite
+DB_DATABASE=database/database.sqlite
+```
+
+Make sure the PHP SQLite extension is enabled.
 
 ---
 
-### Step 7: Run Migrations and Seed Realistic Demo Data
-Run the database migrations and seed all initial data (categories, hospitals, ambulances, specialist doctors, blood donors, and demo accounts):
+## 🛠️ 4. Run Database Migrations
+
+Run:
+
+```bash
+php artisan migrate --seed
+```
+
+This creates the database tables and executes the configured seeders.
+
+**Important:** If you intentionally want to reset the database and recreate all tables, you can use:
+
 ```bash
 php artisan migrate:fresh --seed
 ```
 
-> **What gets seeded automatically?**
-> - **7 Categories**: Hospitals, Ambulances, Pharmacies, Blood Donors, Police, Fire Services, Diagnostic Centers.
-> - **Major Emergency Hospitals**: Dhaka Medical College Hospital (DMCH), Square Hospital, United Hospital, Chittagong Medical College Hospital (CMCH).
-> - **Specialist & On-Call Doctors**: Senior cardiologists, trauma physicians, burn surgeons, and visiting schedules.
-> - **Blood Donors**: Donors across all 8 blood groups with realistic donation intervals and apheresis platelet eligibility.
-> - **Demo Incidents & First Responders**: Active emergency dispatches and registered first responders.
+Warning: `migrate:fresh` deletes existing tables and their data. Do not use it on a database containing data you want to keep.
 
 ---
 
-### Step 8: Create the Public Storage Symlink
-Link the `storage/app/public` folder to `public/storage` so that uploaded images, doctor photos, and documents load properly:
+## 🔗 5. Create the Storage Link
+
+Run:
+
 ```bash
 php artisan storage:link
 ```
 
+This makes publicly accessible uploaded files available through `public/storage`.
+
 ---
 
-### Step 9: Build Frontend Assets
-Compile Tailwind CSS 4, Alpine.js, and Leaflet assets using Vite:
+## 🎨 6. Build Frontend Assets
+
+Run:
+
 ```bash
 npm run build
 ```
 
+This compiles the frontend assets using Vite.
+
 ---
 
-## 🏃‍♂️ Running the Project Locally
+## ▶️ 7. Run the Application
 
-To run the application with live hot-reloading for development, open two terminal windows:
+For local development, open two terminal windows in the project directory.
 
-### Terminal 1: Frontend Asset Server (Vite)
+**Terminal 1 – Vite development server**
+
 ```bash
 npm run dev
 ```
 
-### Terminal 2: Backend Laravel Server
+**Terminal 2 – Laravel server**
+
 ```bash
 php artisan serve
 ```
 
-Now open your web browser and navigate to:
-👉 **[http://localhost:8000](http://localhost:8000)** (or `http://127.0.0.1:8000`)
+Open the application in your browser:
+
+http://127.0.0.1:8000
 
 ---
 
-## 🔑 Pre-Configured Demo Accounts
+## 🔐 8. Demo Accounts
 
-You can test any role immediately. On the **Sign In** page (`/login`), there are **1-Click quick fill buttons**, or you can enter these credentials manually:
+If the database seeders create these accounts, use the following credentials:
 
-| User Role | Email Address | Password | Accessible Areas & Features |
-| :--- | :--- | :--- | :--- |
-| **System Administrator** | `admin@needhelp.bd` | `password123` | `/admin/dashboard`, `/admin/emergency-command` (EOC Command Center), `/admin/emergency-analytics` (GIS Heatmap), Verification Queues |
-| **Medical Provider** | `square.hospital@needhelp.bd` | `password123` | `/provider/dashboard`, `/provider/dispatches` (Live Dispatch Console), Facility & Doctor Roster Management |
-| **Citizen / General User**| `citizen@needhelp.bd` | `password123` | `/dashboard`, 1-Tap SOS (`/emergency/sos`), Voice Triage Intake (`/emergency/report`), Blood Donor Contact Requests |
+| Role                   | Email                         | Password      |
+| ---------------------- | ----------------------------- | ------------- |
+| System Administrator   | `admin@needhelp.bd`           | `password123` |
+| Medical Provider       | `square.hospital@needhelp.bd` | `password123` |
+| Citizen / General User | `citizen@needhelp.bd`         | `password123` |
 
----
-
-## 🤖 Optional: Google Gemini AI Triage Configuration
-
-The platform features an intelligent emergency intake and triage engine.
-
-- **Offline Mode (Default)**: If no Gemini API key is configured, the system uses its built-in clinical **Deterministic NLP parser** with 50+ Bengali and English medical emergency keywords. The application will work **100% smoothly without an API key**.
-- **Gemini AI Mode (Optional)**: If you want to enable Google Gemini LLM triage, get a free API key from [Google AI Studio](https://aistudio.google.com/) and add it to your `.env` file:
-  ```ini
-  GEMINI_API_KEY=your_gemini_api_key_here
-  GEMINI_MODEL=gemini-1.5-flash
-  ```
+These accounts are intended for local development and testing. Do not use demo credentials in production.
 
 ---
 
-## 🧪 Verifying with the Automated Test Suite
+## 🤖 9. Optional Gemini AI Configuration
 
-We maintain a comprehensive automated test suite with **100% pass rate** across all modules.
+The application supports an optional Gemini API integration.
 
-To verify your installation:
+Without an API key, the application can use its built-in deterministic emergency parsing functionality where configured.
+
+To enable Gemini:
+
+1. Obtain an API key from Google AI Studio.
+2. Add the following settings to `.env`:
+
+```ini
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=your_supported_gemini_model
+```
+
+Use a model supported by the configured Gemini API integration.
+
+Never commit your actual API key to GitHub.
+
+---
+
+## 🧪 10. Run Automated Tests
+
+Run the complete test suite:
+
 ```bash
 php artisan test
 ```
 
-Expected result:
+The verified project test result is:
+
 ```text
-  Tests:    108 passed (611 assertions)
-  Duration: ~100s
+Tests:    108 passed (611 assertions)
 ```
 
-You can also run specific test suites:
+You can also run individual test groups:
+
+**Chatbot tests**
+
 ```bash
-# Test the Emergency Assistant & Chatbot modules
 php artisan test tests/Feature/Chatbot
+```
 
-# Test Emergency SOS & Incident Live Tracker
+**Emergency incident tests**
+
+```bash
 php artisan test tests/Feature/EmergencyIncidentTest.php
+```
 
-# Test EOC Command Center & Smart Dispatch
+**Emergency command center tests**
+
+```bash
 php artisan test tests/Feature/EmergencyCommandCenterTest.php
 ```
 
----
-
-## 🛠️ Common Troubleshooting & FAQ
-
-### Q1: `SQLSTATE[HY000] [1045] Access denied for user 'root'@'localhost'`
-- **Cause**: MySQL password mismatch in `.env`.
-- **Solution**: Open `.env` and set `DB_PASSWORD=` to empty if you are using standard XAMPP or Laragon. If your MySQL user has a password, enter that exact password.
-
-### Q2: `SQLSTATE[HY000] [1049] Unknown database 'need_help'`
-- **Cause**: The database has not been created yet in MySQL.
-- **Solution**: Open your MySQL terminal or phpMyAdmin and run `CREATE DATABASE need_help;`, then re-run `php artisan migrate:fresh --seed`.
-
-### Q3: `Vite manifest not found at: .../public/build/manifest.json`
-- **Cause**: Frontend assets have not been built yet.
-- **Solution**: Run `npm run build` once, or keep `npm run dev` running in a separate terminal.
-
-### Q4: `The "public/storage" directory already exists`
-- **Cause**: The storage link was already created previously.
-- **Solution**: This is harmless. If you need to refresh it:
-  - Windows: Delete the `public\storage` folder and run `php artisan storage:link`.
-  - Linux/Mac: Run `rm public/storage && php artisan storage:link`.
-
-### Q5: Images or avatars uploaded in storage return 404
-- **Solution**: Run `php artisan storage:link`.
-
-### Q6: Changes to `.env` or configurations are not taking effect
-- **Solution**: Clear Laravel's configuration and route caches:
-  ```bash
-  php artisan config:clear
-  php artisan route:clear
-  php artisan cache:clear
-  php artisan view:clear
-  ```
+Test results may change as the project is updated.
 
 ---
 
-## 📁 Key Directories & Architecture Overview
+## 🔧 11. Troubleshooting
+
+### Q1: MySQL Access Denied
+
+Error:
 
 ```text
-Need_Help_Emergency_Resource_Finder/
-├── app/
-│   ├── Http/Controllers/    # Route controllers (SOS, Assistant, Search, Admin, Provider)
-│   ├── Models/                 # Eloquent models (Resource, Incident, BloodDonor, Doctor, etc.)
-│   └── Services/               # Core business logic:
-│       ├── AI/                 # GeminiEmergencyProvider & SpeechToTextService
-│       ├── Chatbot/            # Conversational triage FSM, intent classifiers & knowledge base
-│       └── Emergency/          # DispatchExecution, ResourceMatching, ResponseTimePrediction
-├── database/
-│   ├── migrations/             # 25 database schema migrations
-│   └── seeders/                # Idempotent realistic seed data for Bangladesh
-├── resources/
-│   ├── views/                  # Blade templates (Tailwind CSS 4 + Alpine.js)
-│   │   ├── components/         # Reusable UI components (Navbar, SOS Modal, Chatbot widget)
-│   │   ├── emergency/          # SOS, report intake & live tracker timeline
-│   │   ├── admin/              # EOC command center & GIS heatmap analytics
-│   │   └── provider/           # Hospital & ambulance dispatch fleet console
-│   ├── css/app.css             # Tailwind CSS 4 theme rules & animations
-│   └── js/                     # Alpine.js & theme dark-mode engine
-├── routes/
-│   ├── web.php                 # Web application routes
-│   └── console.php             # CLI artisan commands
-└── tests/
-    └── Feature/                # 108 automated feature test cases
+SQLSTATE[HY000] [1045] Access denied
+```
+
+Check the database username and password in `.env`.
+
+For a default XAMPP installation, the username is often `root` and the password is empty.
+
+### Q2: Unknown Database
+
+Error:
+
+```text
+SQLSTATE[HY000] [1049] Unknown database
+```
+
+Create the database specified in `DB_DATABASE` in `.env`.
+
+### Q3: PDO MySQL Driver Not Found
+
+Error:
+
+```text
+could not find driver
+```
+
+Enable the `pdo_mysql` extension in the active PHP configuration file and restart the terminal or web server.
+
+Verify the extension:
+
+```bash
+php -m
+```
+
+### Q4: Vite Manifest Not Found
+
+Error:
+
+```text
+Vite manifest not found
+```
+
+Run:
+
+```bash
+npm install
+npm run build
+```
+
+Alternatively, keep `npm run dev` running during development.
+
+### Q5: Storage Images Return 404
+
+Run:
+
+```bash
+php artisan storage:link
+```
+
+### Q6: Configuration Changes Are Not Taking Effect
+
+Clear the Laravel configuration and application caches:
+
+```bash
+php artisan optimize:clear
 ```
 
 ---
 
-✨ **Happy Coding! If you encounter any unexpected issues, check the FAQ section above or ask the team.**
+## 📁 12. Main Project Structure
+
+```text
+Need-Help-Emergency-Resource-Finder/
+├── app/
+│   ├── Http/
+│   │   └── Controllers/
+│   ├── Models/
+│   ├── Policies/
+│   ├── Providers/
+│   └── Services/
+│       ├── AI/
+│       ├── Analytics/
+│       ├── Chatbot/
+│       ├── Dispatch/
+│       ├── Emergency/
+│       └── Hospital/
+├── bootstrap/
+├── config/
+├── database/
+│   ├── factories/
+│   ├── migrations/
+│   └── seeders/
+├── public/
+├── resources/
+│   ├── css/
+│   ├── js/
+│   └── views/
+├── routes/
+├── storage/
+├── tests/
+│   ├── Feature/
+│   └── Unit/
+├── .env.example
+├── artisan
+├── composer.json
+├── package.json
+├── phpunit.xml
+└── setup.md
+```
+
+---
+
+✨ **Happy Coding!**
