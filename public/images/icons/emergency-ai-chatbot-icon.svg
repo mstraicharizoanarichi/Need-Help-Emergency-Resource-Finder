@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <!-- Emergency Crimson Gradient -->
+    <linearGradient id="emergencyBg" x1="10" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F87171" />
+      <stop offset="30%" stop-color="#EF4444" />
+      <stop offset="70%" stop-color="#DC2626" />
+      <stop offset="100%" stop-color="#991B1B" />
+    </linearGradient>
+
+    <!-- Glass Rim Highlight -->
+    <linearGradient id="glassRim" x1="16" y1="6" x2="48" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05" />
+    </linearGradient>
+
+    <!-- Soft Ambient Red Glow -->
+    <filter id="crimsonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#DC2626" flood-opacity="0.5" />
+    </filter>
+
+    <!-- Status Dot Glow -->
+    <filter id="statusGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#10B981" flood-opacity="0.9" />
+    </filter>
+  </defs>
+
+  <!-- Ambient Glow Backdrop -->
+  <circle cx="32" cy="32" r="28" fill="url(#emergencyBg)" filter="url(#crimsonGlow)" />
+
+  <!-- Main Circular Badge with Glass Border -->
+  <circle cx="32" cy="32" r="27.5" fill="url(#emergencyBg)" stroke="url(#glassRim)" stroke-width="1.25" />
+
+  <!-- Subtle Top Glass Reflection Arc -->
+  <path d="M12 28 A 24 24 0 0 1 52 28 A 23 20 0 0 0 12 28 Z" fill="#FFFFFF" opacity="0.12" />
+
+  <!-- Robot Chat Bubble Character -->
+  <g id="robot-chat-bubble">
+    <!-- Top Antenna Knob -->
+    <circle cx="32" cy="13.5" r="3.25" fill="#FFFFFF" />
+    
+    <!-- Antenna Stem -->
+    <rect x="30.5" y="16.5" width="3" height="4.5" rx="1.5" fill="#FFFFFF" />
+
+    <!-- Left Ear Pad -->
+    <rect x="9.5" y="27" width="4.5" height="11.5" rx="2.25" fill="#FFFFFF" />
+
+    <!-- Right Ear Pad -->
+    <rect x="50" y="27" width="4.5" height="11.5" rx="2.25" fill="#FFFFFF" />
+
+    <!-- Robot Head / Speech Bubble Body (White fill) -->
+    <path d="M 21 20.5 H 43 C 48 20.5 51.5 24 51.5 29 V 39 C 51.5 44 48 47.5 43 47.5 H 28 L 20 54.5 L 21.5 47.5 H 21 C 16 47.5 12.5 44 12.5 39 V 29 C 12.5 24 16 20.5 21 20.5 Z" 
+          fill="#FFFFFF" />
+
+    <!-- Friendly Eyes (Cutout in Emergency Red) -->
+    <circle cx="24" cy="31.5" r="3.4" fill="#DC2626" />
+    <circle cx="40" cy="31.5" r="3.4" fill="#DC2626" />
+
+    <!-- Pleasant Smile (Curved in Emergency Red) -->
+    <path d="M 26.5 38 Q 32 42.5 37.5 38" 
+          stroke="#DC2626" 
+          stroke-width="2.75" 
+          stroke-linecap="round" 
+          fill="none" />
+  </g>
+
+  <!-- Top-Right Assistant Status Dot -->
+  <g filter="url(#statusGlow)">
+    <circle cx="49" cy="15" r="3.2" fill="#10B981" />
+    <circle cx="49" cy="15" r="2" fill="#34D399" />
+    <circle cx="48.3" cy="14.3" r="0.7" fill="#FFFFFF" opacity="0.9" />
+  </g>
+</svg>

@@ -2,7 +2,6 @@
 
 namespace App\Services\Analytics;
 
-use App\Models\EmergencyDispatch;
 use App\Models\EmergencyIncident;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -10,48 +9,81 @@ use Illuminate\Support\Facades\DB;
 class EmergencyAnalyticsService
 {
     /**
-     * Compute comprehensive emergency response analytics and SLA metrics
+     * Calculate the time difference in minutes.
+     * Supports both MySQL and SQLite.
+     */
+    private function timeDifferenceInMinutes(string $startColumn, string $endColumn): string
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return "((julianday({$endColumn}) - julianday({$startColumn})) * 1440)";
+        }
+
+        return "(TIMESTAMPDIFF(SECOND, {$startColumn}, {$endColumn}) / 60)";
+    }
+
+    /**
+     * Compute comprehensive emergency response analytics and SLA metrics.
      */
     public function getAnalyticsSummary(int $days = 30): array
     {
         $since = Carbon::now()->subDays($days);
 
         $totalIncidents = EmergencyIncident::where('created_at', '>=', $since)->count();
+
         $resolvedIncidents = EmergencyIncident::where('created_at', '>=', $since)
             ->where('status', 'RESOLVED')
             ->count();
+
         $sosIncidents = EmergencyIncident::where('created_at', '>=', $since)
             ->where('is_sos', true)
             ->count();
+
         $mciIncidents = EmergencyIncident::where('created_at', '>=', $since)
             ->where('is_mci', true)
             ->count();
 
-        // Dispatch Latency (from reported_at to dispatched_at)
+        // Dispatch latency: reported_at to dispatched_at.
+        $dispatchDifference = $this->timeDifferenceInMinutes(
+            'reported_at',
+            'dispatched_at'
+        );
+
         $avgDispatchLatencyMinutes = EmergencyIncident::where('created_at', '>=', $since)
             ->whereNotNull('reported_at')
             ->whereNotNull('dispatched_at')
-            ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, reported_at, dispatched_at) / 60) as avg_latency')
+            ->selectRaw("AVG({$dispatchDifference}) AS avg_latency")
             ->value('avg_latency') ?? 3.5;
 
-        // Arrival / Response Time (from dispatched_at to arrived_at)
+        // Response time: dispatched_at to arrived_at.
+        $responseDifference = $this->timeDifferenceInMinutes(
+            'dispatched_at',
+            'arrived_at'
+        );
+
         $avgResponseTimeMinutes = EmergencyIncident::where('created_at', '>=', $since)
             ->whereNotNull('dispatched_at')
             ->whereNotNull('arrived_at')
-            ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, dispatched_at, arrived_at) / 60) as avg_response')
+            ->selectRaw("AVG({$responseDifference}) AS avg_response")
             ->value('avg_response') ?? 14.8;
 
-        // SLA Compliance Rate: P1 target <= 18 min, P2 target <= 28 min
+        // SLA compliance: P1 <= 18 minutes, P2 <= 28 minutes.
+        $arrivalDifference = $this->timeDifferenceInMinutes(
+            'reported_at',
+            'arrived_at'
+        );
+
         $slaCompliantCount = EmergencyIncident::where('created_at', '>=', $since)
             ->whereNotNull('reported_at')
             ->whereNotNull('arrived_at')
-            ->where(function ($q) {
-                $q->where(function ($sub) {
-                    $sub->where('severity_level', 'P1')
-                        ->whereRaw('TIMESTAMPDIFF(MINUTE, reported_at, arrived_at) <= 18');
-                })->orWhere(function ($sub) {
-                    $sub->where('severity_level', 'P2')
-                        ->whereRaw('TIMESTAMPDIFF(MINUTE, reported_at, arrived_at) <= 28');
+            ->where(function ($query) use ($arrivalDifference) {
+                $query->where(function ($subQuery) use ($arrivalDifference) {
+                    $subQuery->where('severity_level', 'P1')
+                        ->whereRaw("{$arrivalDifference} <= ?", [18]);
+                })->orWhere(function ($subQuery) use ($arrivalDifference) {
+                    $subQuery->where('severity_level', 'P2')
+                        ->whereRaw("{$arrivalDifference} <= ?", [28]);
                 });
             })
             ->count();
@@ -61,34 +93,40 @@ class EmergencyAnalyticsService
             ->whereNotNull('arrived_at')
             ->count();
 
-        $slaComplianceRate = $measuredCount > 0 ? round(($slaCompliantCount / $measuredCount) * 100, 1) : 89.2;
+        $slaComplianceRate = $measuredCount > 0
+            ? round(($slaCompliantCount / $measuredCount) * 100, 1)
+            : 89.2;
 
-        // Incident Type Breakdown
+        // Incident type breakdown.
         $byType = EmergencyIncident::where('created_at', '>=', $since)
-            ->select('emergency_type', DB::raw('count(*) as count'))
+            ->select('emergency_type', DB::raw('COUNT(*) AS count'))
             ->groupBy('emergency_type')
             ->orderByDesc('count')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->emergency_type => (int) $item->count])
+            ->mapWithKeys(fn ($item) => [
+                $item->emergency_type => (int) $item->count,
+            ])
             ->all();
 
-        // Severity Distribution
+        // Severity distribution.
         $bySeverity = EmergencyIncident::where('created_at', '>=', $since)
-            ->select('severity_level', DB::raw('count(*) as count'))
+            ->select('severity_level', DB::raw('COUNT(*) AS count'))
             ->groupBy('severity_level')
             ->orderBy('severity_level')
             ->get()
-            ->mapWithKeys(fn($item) => [$item->severity_level => (int) $item->count])
+            ->mapWithKeys(fn ($item) => [
+                $item->severity_level => (int) $item->count,
+            ])
             ->all();
 
-        // District Distribution (Top emergency hotspots)
+        // District distribution.
         $byDistrict = EmergencyIncident::where('created_at', '>=', $since)
-            ->select('district', DB::raw('count(*) as count'))
+            ->select('district', DB::raw('COUNT(*) AS count'))
             ->groupBy('district')
             ->orderByDesc('count')
             ->limit(8)
             ->get()
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'district' => $item->district ?: 'Dhaka',
                 'count' => (int) $item->count,
             ])
@@ -110,7 +148,7 @@ class EmergencyAnalyticsService
     }
 
     /**
-     * Get GIS Heatmap coordinates with intensity weights for spatial mapping
+     * Get GIS heatmap coordinates with intensity weights.
      */
     public function getHeatmapPoints(int $days = 60): array
     {
@@ -119,7 +157,16 @@ class EmergencyAnalyticsService
         $points = EmergencyIncident::where('created_at', '>=', $since)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->select('id', 'public_reference', 'emergency_type', 'severity_level', 'latitude', 'longitude', 'is_sos', 'is_mci')
+            ->select(
+                'id',
+                'public_reference',
+                'emergency_type',
+                'severity_level',
+                'latitude',
+                'longitude',
+                'is_sos',
+                'is_mci'
+            )
             ->limit(500)
             ->get();
 
@@ -132,7 +179,7 @@ class EmergencyAnalyticsService
             };
 
             if ($incident->is_mci) {
-                $intensity = 1.2; // Maximum visual cluster weight
+                $intensity = 1.2;
             }
 
             return [
@@ -146,3 +193,4 @@ class EmergencyAnalyticsService
         })->all();
     }
 }
+

@@ -6,7 +6,6 @@ use App\Models\BloodDonor;
 use App\Models\Resource;
 use App\Models\SearchLog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -14,21 +13,6 @@ class LocationSearchService
 {
     /**
      * Search emergency resources with optional Haversine distance calculation and filtering.
-     *
-     * @param array $filters [
-     *   'category' => slug|id,
-     *   'lat' => float,
-     *   'lng' => float,
-     *   'radius' => float (in km),
-     *   'query' => string,
-     *   'availability' => string ('all', 'available', '24_7', 'open_now'),
-     *   'verified_only' => bool,
-     *   'city' => string,
-     *   'district' => string,
-     *   'per_page' => int,
-     *   'user_id' => int|null,
-     *   'ip' => string|null,
-     * ]
      */
     public function searchResources(array $filters): LengthAwarePaginator
     {
@@ -44,14 +28,12 @@ class LocationSearchService
         $query = Resource::with(['category', 'details', 'operatingHours'])
             ->whereNull('deleted_at');
 
-        // By default, public search shows verified resources and provider active resources
         if ($verifiedOnly) {
             $query->where('verification_status', 'verified');
         } else {
             $query->whereIn('verification_status', ['verified', 'pending']);
         }
 
-        // Filter by category
         if (!empty($categorySlugOrId) && $categorySlugOrId !== 'all') {
             if (is_numeric($categorySlugOrId)) {
                 $query->where('category_id', (int) $categorySlugOrId);
@@ -62,7 +44,6 @@ class LocationSearchService
             }
         }
 
-        // Filter by text search (name, area, address, city, description)
         if (!empty($searchQuery)) {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('name', 'like', "%{$searchQuery}%")
@@ -75,58 +56,56 @@ class LocationSearchService
             });
         }
 
-        // Availability filters
         if ($availability === 'available') {
             $query->where('availability_status', 'available');
         } elseif ($availability === '24_7') {
             $query->where('is_24_7', true);
         }
 
-        // District or City filter
         if (!empty($filters['district'])) {
             $query->where('district', $filters['district']);
         }
+
         if (!empty($filters['city'])) {
             $query->where('city', $filters['city']);
         }
 
-        // Location & Haversine Distance
-        $hasLocation = ($lat !== null && $lng !== null && $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180);
+        $hasLocation = (
+            $lat !== null &&
+            $lng !== null &&
+            $lat >= -90 &&
+            $lat <= 90 &&
+            $lng >= -180 &&
+            $lng <= 180
+        );
 
         if ($hasLocation) {
-            // Apply bounding box pre-filter for index optimization if radius is specified
             if ($radius && $radius > 0) {
                 $latDelta = $radius / 111.0;
                 $lngDelta = $radius / (111.0 * max(0.1, cos(deg2rad($lat))));
 
                 $query->whereBetween('latitude', [$lat - $latDelta, $lat + $latDelta])
-                      ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
+                    ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
             }
 
-            // Haversine formula select in MySQL
-            $haversineSql = "(6371 * acos(
-                LEAST(1.0, GREATEST(-1.0, 
-                    cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))
-                ))
-            ))";
+            $haversineSql = $this->getHaversineSql();
 
             $query->select('*')
                 ->selectRaw("{$haversineSql} AS distance", [$lat, $lng, $lat]);
 
             if ($radius && $radius > 0) {
-                $query->havingRaw("distance <= ?", [$radius]);
+                $query->whereRaw("{$haversineSql} <= ?", [$lat, $lng, $lat, $radius]);
             }
 
             $query->orderBy('distance', 'asc');
         } else {
             $query->orderBy('is_featured', 'desc')
-                  ->orderBy('verification_status', 'desc')
-                  ->orderBy('name', 'asc');
+                ->orderBy('verification_status', 'desc')
+                ->orderBy('name', 'asc');
         }
 
         $results = $query->paginate($perPage)->withQueryString();
 
-        // Log search query for analytics
         if (!empty($searchQuery) || $hasLocation || !empty($categorySlugOrId)) {
             $this->logSearch([
                 'user_id' => $filters['user_id'] ?? null,
@@ -169,12 +148,19 @@ class LocationSearchService
         if (!empty($area)) {
             $query->where(function ($q) use ($area) {
                 $q->where('area', 'like', "%{$area}%")
-                  ->orWhere('city', 'like', "%{$area}%")
-                  ->orWhere('district', 'like', "%{$area}%");
+                    ->orWhere('city', 'like', "%{$area}%")
+                    ->orWhere('district', 'like', "%{$area}%");
             });
         }
 
-        $hasLocation = ($lat !== null && $lng !== null && $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180);
+        $hasLocation = (
+            $lat !== null &&
+            $lng !== null &&
+            $lat >= -90 &&
+            $lat <= 90 &&
+            $lng >= -180 &&
+            $lng <= 180
+        );
 
         if ($hasLocation) {
             if ($radius && $radius > 0) {
@@ -182,27 +168,23 @@ class LocationSearchService
                 $lngDelta = $radius / (111.0 * max(0.1, cos(deg2rad($lat))));
 
                 $query->whereBetween('latitude', [$lat - $latDelta, $lat + $latDelta])
-                      ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
+                    ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
             }
 
-            $haversineSql = "(6371 * acos(
-                LEAST(1.0, GREATEST(-1.0, 
-                    cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))
-                ))
-            ))";
+            $haversineSql = $this->getHaversineSql();
 
             $query->select('*')
                 ->selectRaw("{$haversineSql} AS distance", [$lat, $lng, $lat]);
 
             if ($radius && $radius > 0) {
-                $query->havingRaw("distance <= ?", [$radius]);
+                $query->whereRaw("{$haversineSql} <= ?", [$lat, $lng, $lat, $radius]);
             }
 
             $query->orderBy('distance', 'asc');
         } else {
             $query->orderBy('is_available', 'desc')
-                  ->orderBy('total_donations', 'desc')
-                  ->orderBy('full_name', 'asc');
+                ->orderBy('total_donations', 'desc')
+                ->orderBy('full_name', 'asc');
         }
 
         return $query->paginate($perPage)->withQueryString();
@@ -241,22 +223,25 @@ class LocationSearchService
             });
         }
 
-        if ($lat !== null && $lng !== null) {
+        if (
+            $lat !== null &&
+            $lng !== null &&
+            $lat >= -90 &&
+            $lat <= 90 &&
+            $lng >= -180 &&
+            $lng <= 180
+        ) {
             $latDelta = $radius / 111.0;
             $lngDelta = $radius / (111.0 * max(0.1, cos(deg2rad($lat))));
 
             $query->whereBetween('latitude', [$lat - $latDelta, $lat + $latDelta])
-                  ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
+                ->whereBetween('longitude', [$lng - $lngDelta, $lng + $lngDelta]);
 
-            $haversineSql = "(6371 * acos(
-                LEAST(1.0, GREATEST(-1.0, 
-                    cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))
-                ))
-            ))";
+            $haversineSql = $this->getHaversineSql();
 
             $query->select('*')
                 ->selectRaw("{$haversineSql} AS distance", [$lat, $lng, $lat])
-                ->havingRaw("distance <= ?", [$radius])
+                ->whereRaw("{$haversineSql} <= ?", [$lat, $lng, $lat, $radius])
                 ->orderBy('distance', 'asc');
         } else {
             $query->limit(100);
@@ -287,6 +272,24 @@ class LocationSearchService
                 'directions_url' => $resource->getDirectionsUrl(),
             ];
         });
+    }
+
+    /**
+     * Generate database-compatible Haversine SQL.
+     */
+    private function getHaversineSql(): string
+    {
+        $distanceExpression = "
+            cos(radians(?)) * cos(radians(latitude))
+            * cos(radians(longitude) - radians(?))
+            + sin(radians(?)) * sin(radians(latitude))
+        ";
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return "(6371 * acos(MAX(-1.0, MIN(1.0, {$distanceExpression}))))";
+        }
+
+        return "(6371 * acos(LEAST(1.0, GREATEST(-1.0, {$distanceExpression}))))";
     }
 
     private function logSearch(array $data): void

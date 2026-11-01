@@ -29,7 +29,6 @@ class MassCasualtyProtocolService
     ): EmergencyIncident {
         $victimsCount = (int) ($data['number_of_victims'] ?? max(5, $incident->number_of_victims));
 
-        // Determine MCI Level based on casualty scale
         $mciLevel = $data['mci_level'] ?? match (true) {
             $victimsCount >= 50 => 'LEVEL_4',
             $victimsCount >= 26 => 'LEVEL_3',
@@ -37,7 +36,6 @@ class MassCasualtyProtocolService
             default => 'LEVEL_1',
         };
 
-        // START (Simple Triage and Rapid Treatment) initial casualty distribution
         $triageCounts = $data['triage_counts'] ?? [
             'red' => (int) round($victimsCount * 0.35),
             'yellow' => (int) round($victimsCount * 0.40),
@@ -48,7 +46,6 @@ class MassCasualtyProtocolService
         $red = $triageCounts['red'] ?? 0;
         $yellow = $triageCounts['yellow'] ?? 0;
 
-        // Calculate Multi-Hospital Bed Distribution
         $hospitalAllocations = $this->calculateSurgeBedDistribution(
             $incident,
             $red,
@@ -79,8 +76,8 @@ class MassCasualtyProtocolService
                 $yellow,
                 count($hospitalAllocations)
             ),
-            'actor_id' => $operator?->id,
-            'metadata' => [
+            'actor_user_id' => $operator?->id,
+            'payload' => [
                 'mci_level' => $mciLevel,
                 'number_of_victims' => $victimsCount,
                 'triage_counts' => $triageCounts,
@@ -102,26 +99,29 @@ class MassCasualtyProtocolService
         $lat = $incident->latitude ?? 23.7808;
         $lng = $incident->longitude ?? 90.4152;
 
-        // Fetch top regional hospitals within 40 km
+        $distanceSql = '(6371 * acos(
+            cos(radians(?))
+            * cos(radians(latitude))
+            * cos(radians(longitude) - radians(?))
+            + sin(radians(?))
+            * sin(radians(latitude))
+        ))';
+
         $hospitals = Resource::query()
-            ->whereHas('category', fn($q) => $q->where('slug', 'hospital'))
+            ->whereHas('category', fn ($q) => $q->where('slug', 'hospital'))
             ->where('availability_status', '!=', 'unavailable')
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->select('*')
-            ->selectRaw(
-                '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance',
-                [$lat, $lng, $lat]
-            )
-            ->having('distance', '<=', 40.0)
+            ->selectRaw("{$distanceSql} AS distance", [$lat, $lng, $lat])
+            ->whereRaw("{$distanceSql} <= ?", [$lat, $lng, $lat, 40.0])
             ->orderBy('distance', 'asc')
             ->limit(6)
             ->get();
 
         if ($hospitals->isEmpty()) {
-            // Fallback to any hospital
             $hospitals = Resource::query()
-                ->whereHas('category', fn($q) => $q->where('slug', 'hospital'))
+                ->whereHas('category', fn ($q) => $q->where('slug', 'hospital'))
                 ->limit(4)
                 ->get();
         }
@@ -203,8 +203,8 @@ class MassCasualtyProtocolService
                 $triageCounts['green'] ?? 0,
                 $triageCounts['black'] ?? 0
             ),
-            'actor_id' => $operator?->id,
-            'metadata' => [
+            'actor_user_id' => $operator?->id,
+            'payload' => [
                 'triage_counts' => $triageCounts,
             ],
         ]);
